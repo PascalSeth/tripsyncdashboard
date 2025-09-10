@@ -282,3 +282,68 @@ export async function PUT(request: NextRequest) {
     )
   }
 }
+
+// DELETE - Remove category
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session || !session.token) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Authentication required",
+        },
+        { status: 401 },
+      )
+    }
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get("id")
+
+    if (!id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Category ID is required",
+        },
+        { status: 400 },
+      )
+    }
+
+    const response = await fetch(`${process.env.API_URL}/api/stores/categories/${id}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.token}`,
+      },
+    })
+
+    const data = await response.json()
+    console.log("Category deletion response:", data)
+
+    if (data.success) {
+      return NextResponse.json({
+        success: true,
+        message: data.message || "Category deleted successfully",
+      })
+    } else {
+      return NextResponse.json(
+        {
+          success: false,
+          error: data.message || "Failed to delete category",
+        },
+        { status: response.status },
+      )
+    }
+  } catch (error) {
+    console.error("Category deletion error:", error)
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Internal server error",
+      },
+      { status: 500 },
+    )
+  }
+}
