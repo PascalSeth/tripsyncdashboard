@@ -31,19 +31,134 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+interface ServiceType {
+  id: string;
+  name: string;
+  description?: string;
+  image?: string;
+  imageUrl?: string;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * ServiceTypeForm extracted to a top-level component to prevent remounting
+ * which was causing input focus loss after each keystroke.
+ */
+const ServiceTypeForm: React.FC<{
+  formData: { name: string; description: string; image: File | null };
+  error: string;
+  isSubmitting: boolean;
+  onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  submitText: string;
+}> = ({
+  formData,
+  error,
+  isSubmitting,
+  onInputChange,
+  onFileChange,
+  onSave,
+  onCancel,
+  submitText
+}) => (
+  <Card className="mb-6">
+    <CardHeader>
+      <CardTitle>{submitText} Service Type</CardTitle>
+      <CardDescription>
+        {submitText === 'Create' ? 'Add a new service type' : 'Update service type details'}
+      </CardDescription>
+    </CardHeader>
+    <CardContent className="space-y-4">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label htmlFor="name">Name *</Label>
+        <Input
+          id="name"
+          name="name"
+          value={formData.name}
+          onChange={onInputChange}
+          placeholder="Enter service type name"
+          disabled={isSubmitting}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="description">Description</Label>
+        <Textarea
+          id="description"
+          name="description"
+          value={formData.description}
+          onChange={onInputChange}
+          placeholder="Enter service type description"
+          rows={3}
+          disabled={isSubmitting}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="image">Service Type Image</Label>
+        <Input
+          id="image"
+          name="image"
+          type="file"
+          accept="image/*"
+          onChange={onFileChange}
+          disabled={isSubmitting}
+        />
+        {formData.image && (
+          <p className="text-sm text-gray-600">Selected: {formData.image.name}</p>
+        )}
+      </div>
+
+      <div className="flex gap-2 pt-4">
+        <Button
+          onClick={onSave}
+          className="flex items-center gap-2"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          {isSubmitting ? 'Saving...' : submitText}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={onCancel}
+          className="flex items-center gap-2"
+          disabled={isSubmitting}
+        >
+          <X size={16} />
+          Cancel
+        </Button>
+      </div>
+    </CardContent>
+  </Card>
+);
+
 const ServiceTypes = () => {
-  const [serviceTypes, setServiceTypes] = useState([]);
+  const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [pagination, setPagination] = useState({});
+  const [pagination, setPagination] = useState({
+    page: 1,
+    totalPages: 1,
+    total: 0
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    image: null
+    image: null as File | null
   });
 
   // Fetch service types from API
@@ -98,7 +213,7 @@ const ServiceTypes = () => {
   };
 
   // Handle form input changes
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -107,7 +222,7 @@ const ServiceTypes = () => {
   };
 
   // Handle file input change
-  const handleFileChange = (e) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     setFormData(prev => ({
       ...prev,
@@ -158,7 +273,7 @@ const ServiceTypes = () => {
   };
 
   // Start editing
-  const handleEdit = (serviceType) => {
+  const handleEdit = (serviceType: ServiceType) => {
     setFormData({
       name: serviceType.name,
       description: serviceType.description || '',
@@ -180,7 +295,9 @@ const ServiceTypes = () => {
 
     try {
       const submitData = new FormData();
-      submitData.append('id', editingId);
+      if (editingId) {
+        submitData.append('id', editingId);
+      }
       submitData.append('name', formData.name.trim());
       if (formData.description?.trim()) {
         submitData.append('description', formData.description.trim());
@@ -220,7 +337,7 @@ const ServiceTypes = () => {
   };
 
   // Delete service type
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     try {
       const response = await fetch(`/api/services/types/${id}`, {
         method: 'DELETE',
@@ -240,7 +357,7 @@ const ServiceTypes = () => {
   };
 
   // Format date
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string | undefined) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -260,84 +377,7 @@ const ServiceTypes = () => {
 
   const stats = getServiceTypeStats();
 
-  // Form Component
-  const ServiceTypeForm = ({ onSave, onCancel, submitText }) => (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle>{submitText} Service Type</CardTitle>
-        <CardDescription>
-          {submitText === 'Create' ? 'Add a new service type' : 'Update service type details'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {error}
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <Label htmlFor="name">Name *</Label>
-          <Input
-            id="name"
-            name="name"
-            value={formData.name}
-            onChange={handleInputChange}
-            placeholder="Enter service type name"
-            disabled={isSubmitting}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            name="description"
-            value={formData.description}
-            onChange={handleInputChange}
-            placeholder="Enter service type description"
-            rows={3}
-            disabled={isSubmitting}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="image">Service Type Image</Label>
-          <Input
-            id="image"
-            name="image"
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            disabled={isSubmitting}
-          />
-          {formData.image && (
-            <p className="text-sm text-gray-600">Selected: {formData.image.name}</p>
-          )}
-        </div>
-
-        <div className="flex gap-2 pt-4">
-          <Button
-            onClick={onSave}
-            className="flex items-center gap-2"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {isSubmitting ? 'Saving...' : submitText}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={onCancel}
-            className="flex items-center gap-2"
-            disabled={isSubmitting}
-          >
-            <X size={16} />
-            Cancel
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  // Form Component moved to top-level to prevent remounting
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
@@ -373,6 +413,11 @@ const ServiceTypes = () => {
       {/* Create Form */}
       {isCreating && (
         <ServiceTypeForm
+          formData={formData}
+          error={error}
+          isSubmitting={isSubmitting}
+          onInputChange={handleInputChange}
+          onFileChange={handleFileChange}
           onSave={handleCreate}
           onCancel={handleCancelEdit}
           submitText="Create"
